@@ -1,16 +1,23 @@
-from tensorflow.keras.applications import DenseNet201 # type: ignore
+from tensorflow.keras.applications import DenseNet201  # type: ignore
 from tensorflow.keras.layers import (  # type: ignore
-    GlobalAveragePooling2D, 
-    Dense, 
-    Dropout, 
-    BatchNormalization
+    GlobalAveragePooling2D,
+    Dense,
+    Dropout,
+    BatchNormalization,
 )
 from tensorflow.keras.models import Model  # type: ignore
 
 from .base_model import BaseModel
 
+
 class DenseNet201FinetuneModel(BaseModel):
-    def __init__(self, input_shape, num_classes, trainable_layers=30, freeze_batchnorm=True):
+    def __init__(
+        self,
+        input_shape,
+        num_classes,
+        trainable_layers=30,
+        freeze_batchnorm=True,
+    ) -> None:
         self.trainable_layers = trainable_layers
         self.freeze_batchnorm = freeze_batchnorm
         super().__init__(input_shape, num_classes)
@@ -26,7 +33,7 @@ class DenseNet201FinetuneModel(BaseModel):
             layer.trainable = False
         # Descongelar las últimas N capas
         if self.trainable_layers > 0:
-            for layer in base_model.layers[-self.trainable_layers:]:
+            for layer in base_model.layers[-self.trainable_layers :]:
                 layer.trainable = True
         # Opcional: mantener BatchNorm congeladas
         if self.freeze_batchnorm:

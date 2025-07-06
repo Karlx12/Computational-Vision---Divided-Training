@@ -1,5 +1,5 @@
 from .base_model import BaseModel
-from tensorflow.keras.layers import ( # type: ignore
+from tensorflow.keras.layers import (  # type: ignore
     Conv2D,
     BatchNormalization,
     Activation,

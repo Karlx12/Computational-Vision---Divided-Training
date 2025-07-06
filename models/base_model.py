@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import tensorflow as tf
-from tensorflow.keras.losses import SparseCategoricalCrossentropy  # type: ignore
+from tensorflow.keras.losses import (  # type: ignore
+    SparseCategoricalCrossentropy,
+)
 
 
 class BaseModel(ABC):
@@ -12,17 +14,17 @@ class BaseModel(ABC):
 
     def compile(self, learning_rate=0.001):
         if self.model is None:
-            raise ValueError(
-                "Model has not been built. Please implement _build_model in the subclass."
-            )
+            raise ValueError("Model has not been built.")
         self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),  # type: ignore
+            optimizer=tf.keras.optimizers.AdamW(  # type: ignore
+                learning_rate=learning_rate
+            ),
             loss=SparseCategoricalCrossentropy,
             metrics=[
                 "accuracy",
                 tf.keras.metrics.Precision(name="precision"),  # type: ignore
                 tf.keras.metrics.Recall(name="recall"),  # type: ignore
-                tf.keras.metrics.AUC(name="auc"),# type: ignore
+                tf.keras.metrics.AUC(name="auc"),  # type: ignore
             ],
         )
 
