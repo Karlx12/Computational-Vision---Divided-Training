@@ -8,7 +8,7 @@ load_dotenv()
 def get_directories() -> dict[str, Path]:
     """Retorna los Path de los directorios principales del proyecto."""
     return {
-        "DATASET_DIR": Path("dataset/Balanced"),
+        "DATASET_DIR": Path("dataset/Training"),
         "MODELS_DIR": Path("models"),
         "CHECKPOINTS_DIR": Path("training_checkpoints"),
         "LOG_DIR": Path("logs"),
