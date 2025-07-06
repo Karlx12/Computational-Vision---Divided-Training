@@ -26,7 +26,6 @@ select = [
     "F405",  # name may be undefined, or defined from star imports: module
     "F841",  # local variable name is assigned to but never used
     "E501",  # line too long
-    "E203",  # whitespace before ':'
     "E231",  # missing whitespace after ','
     "E266",  # too many leading '#' for block comment
     "E302",  # expected 2 blank lines, found 1
