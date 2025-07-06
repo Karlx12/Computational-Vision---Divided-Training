@@ -15,7 +15,7 @@ from utils.distributed import configure_distributed_environment
 def setup_training_components(args, input_shape, num_classes):
     dirs: dict[str, Path] = get_directories()
     train_gen, val_gen = create_data_generators(
-        dirs["BASE_DIR"], input_shape, args.batch_size
+        dirs["DATASET_DIR"], input_shape, args.batch_size
     )
     # Selección de modelo
     if args.model == "cnn":
@@ -72,7 +72,9 @@ def train_distributed(strategy, args):
     setup_directories()
     dirs = get_directories()
     input_shape = (256, 256, 3)
-    num_classes = len([d for d in dirs["BASE_DIR"].iterdir() if d.is_dir()])
+    num_classes: int = len(
+        [d for d in dirs["DATASET_DIR"].iterdir() if d.is_dir()]
+    )
     with strategy.scope():
         model, train_gen, val_gen, callbacks = setup_training_components(
             args, input_shape, num_classes
