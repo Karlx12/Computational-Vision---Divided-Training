@@ -93,7 +93,8 @@ def wait_for_master(
             return True
         except (ConnectionRefusedError, socket.timeout):
             print(
-                f"⏳ Esperando a master... (Intento {retry_count + 1}/{max_retries})"
+                "⏳ Esperando a master..."
+                f"(Intento {retry_count + 1}/{max_retries})"
             )
             time.sleep(retry_delay)
             retry_count += 1

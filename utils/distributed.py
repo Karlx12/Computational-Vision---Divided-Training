@@ -76,17 +76,21 @@ def configure_distributed_environment() -> Tuple[
         node_ips = args.node_ips.split(",")
         if len(node_ips) != args.world_size:
             raise ValueError(
-                f"El número de IPs en --node-ips debe coincidir con --world-size. Recibido: {node_ips}"
+                f"El número de IPs en --node-ips debe coincidir con "
+                f"--world-size. Recibido: {node_ips}"
             )
-        os.environ["TF_CONFIG"] = json.dumps({
-            "cluster": {
-                "worker": [f"{ip}:{args.master_port}" for ip in node_ips]
-            },
-            "task": {"type": "worker", "index": args.rank},
-        })
+        os.environ["TF_CONFIG"] = json.dumps(
+            {
+                "cluster": {
+                    "worker": [f"{ip}:{args.master_port}" for ip in node_ips]
+                },
+                "task": {"type": "worker", "index": args.rank},
+            }
+        )
         strategy = tf.distribute.MultiWorkerMirroredStrategy()
         print(
-            f"🚀 Modo distribuido activado. Nodo {args.rank} de {args.world_size}"
+            "🚀 Modo distribuido activado."
+            f" Nodo {args.rank} de {args.world_size}"
         )
         print(f"🔧 TF_CONFIG: {os.environ['TF_CONFIG']}")
     else:

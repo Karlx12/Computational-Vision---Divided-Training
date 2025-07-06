@@ -1,6 +1,5 @@
-import tensorflow as tf
-from tensorflow.python.keras import layers, models
 from tensorflow.keras.preprocessing.image import ImageDataGenerator  # pyright: ignore[reportMissingImports]
+
 
 def get_last_checkpoint(checkpoints_dir):
     checkpoints = list(checkpoints_dir.glob("cp-*.ckpt.index"))
@@ -11,12 +10,10 @@ def get_last_checkpoint(checkpoints_dir):
     return str(checkpoints_dir / last_checkpoint)
 
 
-
 def create_data_generators(base_dir, input_shape, batch_size):
     datagen = ImageDataGenerator(
         rescale=1.0 / 255,
         validation_split=0.2,  # 20% para validación
-        
     )
     train_gen = datagen.flow_from_directory(
         str(base_dir),
