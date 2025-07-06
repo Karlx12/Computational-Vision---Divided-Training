@@ -3,3 +3,9 @@ logs/*
 dataset
 dataset/*
 .venv/*
+*.env
+__pycache__/
+*.h5
+*.keras
+*.weights*
+*.pkl

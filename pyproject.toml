@@ -9,6 +9,7 @@ dependencies = [
     "pillow>=9.5.0",
     "pipx>=1.7.1",
     "pre-commit>=4.2.0",
+    "python-dotenv>=1.1.1",
     "ruff>=0.12.2",
     "scikit-learn>=1.2.2",
     "seaborn>=0.13.2",
