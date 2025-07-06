@@ -4,9 +4,14 @@ import argparse
 import tensorflow as tf
 from typing import Tuple
 
+from tensorflow.python.distribute.collective_all_reduce_strategy import (
+    CollectiveAllReduceStrategy,
+)
+from tensorflow.python.distribute.distribute_lib import StrategyBase
+
 
 def configure_distributed_environment() -> Tuple[
-    tf.distribute.Strategy, argparse.Namespace
+    CollectiveAllReduceStrategy | StrategyBase, argparse.Namespace
 ]:
     """Configura el entorno para entrenamiento distribuido."""
     parser = argparse.ArgumentParser()
@@ -61,7 +66,7 @@ def configure_distributed_environment() -> Tuple[
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg"],
+        choices=["cnn", "vgg", "densenet201"],
         default="cnn",
         help="Tipo de modelo a entrenar",
     )
@@ -94,7 +99,7 @@ def configure_distributed_environment() -> Tuple[
         )
         print(f"🔧 TF_CONFIG: {os.environ['TF_CONFIG']}")
     else:
-        strategy = tf.distribute.MirroredStrategy()
-        print("🔁 Usando estrategia Mirrored para múltiples GPUs")
+        strategy = tf.distribute.get_strategy()
+        print("🔹 Entrenamiento en un solo dispositivo (CPU o una GPU)")
 
     return strategy, args
