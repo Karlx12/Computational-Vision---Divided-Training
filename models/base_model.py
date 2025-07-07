@@ -1,31 +1,30 @@
-from abc import ABC, abstractmethod
-import tensorflow as tf
-from tensorflow.keras.losses import (  # type: ignore
-    SparseCategoricalCrossentropy,
-)
+from typing import Protocol
+from keras.losses import SparseCategoricalCrossentropy
+from keras.optimizers import AdamW
 
 
-class BaseModel(ABC):
-    def __init__(self, input_shape, num_classes):
+class ModelProtocol(Protocol):
+    def compile(self, learning_rate=0.001): ...
+    def get_model(self): ...
+
+
+class BaseModel:
+    def __init__(self, input_shape, num_classes, learning_rate=0.001):
         self.model = self._build_model(input_shape, num_classes)
+        self.compile(learning_rate)
 
-    @abstractmethod
-    def _build_model(self, input_shape, num_classes): ...
+    def _build_model(self, input_shape, num_classes):
+        raise NotImplementedError(
+            "Debes implementar _build_model en la subclase."
+        )
 
     def compile(self, learning_rate=0.001):
         if self.model is None:
             raise ValueError("Model has not been built.")
         self.model.compile(
-            optimizer=tf.keras.optimizers.AdamW(  # type: ignore
-                learning_rate=learning_rate
-            ),
+            optimizer=AdamW(learning_rate=learning_rate),
             loss=SparseCategoricalCrossentropy,
-            metrics=[
-                "accuracy",
-                tf.keras.metrics.Precision(name="precision"),  # type: ignore
-                tf.keras.metrics.Recall(name="recall"),  # type: ignore
-                tf.keras.metrics.AUC(name="auc"),  # type: ignore
-            ],
+            metrics=["accuracy"],
         )
 
     def get_model(self):
