@@ -19,7 +19,7 @@ def create_data_generators(dataset_dir, input_shape, batch_size):
         str(dataset_dir),
         target_size=input_shape[:2],
         batch_size=batch_size,
-        class_mode="categorical",
+        class_mode="sparse",
         subset="training",
         shuffle=True,
     )
@@ -27,7 +27,7 @@ def create_data_generators(dataset_dir, input_shape, batch_size):
         str(dataset_dir),
         target_size=input_shape[:2],
         batch_size=batch_size,
-        class_mode="categorical",
+        class_mode="sparse",
         subset="validation",
         shuffle=False,
     )

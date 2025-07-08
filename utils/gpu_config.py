@@ -9,6 +9,7 @@ def configure_environment():
     os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
     gpus = tf.config.list_physical_devices("GPU")
     if gpus and gpus[0].device_type == "GPU":
@@ -21,23 +22,25 @@ def configure_environment():
     if gpus:
         try:
             tf.config.experimental.set_memory_growth(gpus[0], True)
-            tf.config.optimizer.set_experimental_options({
-                "layout_optimizer": True,
-                "constant_folding": True,
-                "shape_optimization": True,
-                "remapping": True,
-                "arithmetic_optimization": True,
-                "dependency_optimization": True,
-                "loop_optimization": True,
-                "function_optimization": True,
-                "debug_stripper": True,
-                "disable_model_pruning": False,
-                "scoped_allocator_optimization": True,
-                "pin_to_host_optimization": True,
-                "implementation_selector": True,
-                "auto_mixed_precision": True,
-                "disable_meta_optimizer": False,
-            })
+            tf.config.optimizer.set_experimental_options(
+                {
+                    "layout_optimizer": True,
+                    "constant_folding": True,
+                    "shape_optimization": True,
+                    "remapping": True,
+                    "arithmetic_optimization": True,
+                    "dependency_optimization": True,
+                    "loop_optimization": True,
+                    "function_optimization": True,
+                    "debug_stripper": True,
+                    "disable_model_pruning": False,
+                    "scoped_allocator_optimization": True,
+                    "pin_to_host_optimization": True,
+                    "implementation_selector": True,
+                    "auto_mixed_precision": True,
+                    "disable_meta_optimizer": False,
+                }
+            )
             print("✅ Configuración de GPU completada con éxito.")
         except RuntimeError as e:
             print(f"⚠️ No se pudo configurar GPU: {e}")
