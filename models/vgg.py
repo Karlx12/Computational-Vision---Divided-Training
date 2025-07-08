@@ -7,13 +7,13 @@ class VGGModel(BaseModel):
     def _build_model(self, input_shape, num_classes) -> Sequential:
         model = Sequential(
             [
+                layers.Input(shape=input_shape),
                 # Bloque 1 - 2 capas convolucionales
                 layers.Conv2D(
                     32,
                     (3, 3),
                     padding="same",
                     activation="relu",
-                    input_shape=input_shape,
                 ),
                 layers.BatchNormalization(),
                 layers.Conv2D(32, (3, 3), padding="same", activation="relu"),

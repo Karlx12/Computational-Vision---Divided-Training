@@ -23,7 +23,7 @@ class BaseModel:
             raise ValueError("Model has not been built.")
         self.model.compile(
             optimizer=AdamW(learning_rate=learning_rate),
-            loss=SparseCategoricalCrossentropy,
+            loss=SparseCategoricalCrossentropy(),
             metrics=["accuracy"],
         )
 
