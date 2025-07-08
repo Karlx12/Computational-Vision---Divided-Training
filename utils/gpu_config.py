@@ -10,6 +10,7 @@ def configure_environment():
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+    os.environ["TF_XLA_AUTO_JIT"] = "1"
 
     gpus = tf.config.list_physical_devices("GPU")
     if gpus and gpus[0].device_type == "GPU":
