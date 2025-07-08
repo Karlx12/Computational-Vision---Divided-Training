@@ -1,5 +1,5 @@
-from tensorflow.keras import layers  # type: ignore
-from tensorflow.keras.models import Sequential  # type: ignore
+from keras import layers
+from keras.models import Sequential
 from .base_model import BaseModel
 
 

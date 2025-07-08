@@ -1,11 +1,11 @@
-from tensorflow.keras.applications import DenseNet201  # type: ignore
-from tensorflow.keras.layers import (  # type: ignore
+from keras.applications import DenseNet201
+from keras.layers import (
     GlobalAveragePooling2D,
     Dense,
     Dropout,
     BatchNormalization,
 )
-from tensorflow.keras.models import Model  # type: ignore
+from keras.models import Model
 
 from .base_model import BaseModel
 

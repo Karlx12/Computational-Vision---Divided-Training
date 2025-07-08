@@ -8,7 +8,7 @@ load_dotenv()
 
 # --- Configuración centralizada de variables de entorno ---
 def get_tf_cpp_min_log_level():
-    return os.getenv("TF_CPP_MIN_LOG_LEVEL", "2")
+    return os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
 
 
 def get_img_size():
@@ -28,7 +28,7 @@ def get_model():
 
 
 def get_finetune_trainable_layers():
-    return int(os.getenv("FINETUNE_TRAINABLE_LAYERS", 30))
+    return int(os.getenv("FINETUNE_TRAINABLE_LAYERS", 5))
 
 
 def get_finetune_freeze_batchnorm():

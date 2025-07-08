@@ -1,4 +1,4 @@
-from tensorflow.keras.preprocessing.image import ImageDataGenerator  # pyright: ignore[reportMissingImports]
+from keras.src.legacy.preprocessing.image import ImageDataGenerator
 
 
 def get_last_checkpoint(checkpoints_dir):
@@ -10,17 +10,25 @@ def get_last_checkpoint(checkpoints_dir):
     return str(checkpoints_dir / last_checkpoint)
 
 
-def create_data_generators_training(dataset_dir, input_shape, batch_size):
-    datagen = ImageDataGenerator(
-        rescale=1.0 / 255,
-        rotation_range=20,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode="nearest",
-        validation_split=0.2,
-    )
+def _create_data_generators(
+    dataset_dir, input_shape, batch_size, augment=False
+):
+    if augment:
+        datagen = ImageDataGenerator(
+            rescale=1.0 / 255,
+            rotation_range=20,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            fill_mode="nearest",
+            validation_split=0.2,
+        )
+    else:
+        datagen = ImageDataGenerator(
+            rescale=1.0 / 255,
+            validation_split=0.2,
+        )
     train_gen = datagen.flow_from_directory(
         str(dataset_dir),
         target_size=input_shape[:2],
@@ -36,6 +44,13 @@ def create_data_generators_training(dataset_dir, input_shape, batch_size):
         class_mode="sparse",
         subset="validation",
         shuffle=False,
+    )
+    return train_gen, val_gen
+
+
+def create_data_generators_training(dataset_dir, input_shape, batch_size):
+    train_gen, val_gen = _create_data_generators(
+        dataset_dir, input_shape, batch_size, augment=True
     )
     total_images = train_gen.samples + val_gen.samples
     print(
@@ -45,24 +60,6 @@ def create_data_generators_training(dataset_dir, input_shape, batch_size):
 
 
 def create_data_generators_fine_tunning(dataset_dir, input_shape, batch_size):
-    datagen = ImageDataGenerator(
-        rescale=1.0 / 255,
-        validation_split=0.2,
+    return _create_data_generators(
+        dataset_dir, input_shape, batch_size, augment=False
     )
-    train_gen = datagen.flow_from_directory(
-        str(dataset_dir),
-        target_size=input_shape[:2],
-        batch_size=batch_size,
-        class_mode="sparse",
-        subset="training",
-        shuffle=True,
-    )
-    val_gen = datagen.flow_from_directory(
-        str(dataset_dir),
-        target_size=input_shape[:2],
-        batch_size=batch_size,
-        class_mode="sparse",
-        subset="validation",
-        shuffle=False,
-    )
-    return train_gen, val_gen
