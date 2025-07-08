@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow.keras import mixed_precision  # pyright: ignore[reportMissingImports]
+from utils.config import get_tf_cpp_min_log_level
 
 
 def configure_environment():
@@ -9,7 +10,7 @@ def configure_environment():
     os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = get_tf_cpp_min_log_level()
     os.environ["TF_XLA_AUTO_JIT"] = "1"
 
     gpus = tf.config.list_physical_devices("GPU")
