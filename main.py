@@ -7,15 +7,20 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = os.getenv("TF_CPP_MIN_LOG_LEVEL", "2")
 
 import tensorflow as tf
 from datetime import datetime
-from utils.config import get_directories, setup_directories
-from utils.data_loader import create_data_generators
+from utils.config import (
+    get_directories,
+    setup_directories,
+    get_finetune_trainable_layers,
+    get_finetune_freeze_batchnorm,
+)
+from utils.data_loader import create_data_generators_training
 from utils.distributed import configure_distributed_environment
 from utils.model_reports import save_training_reports
 
 
 def setup_training_components(args, input_shape, num_classes):
     dirs: dict[str, Path] = get_directories()
-    train_gen, val_gen = create_data_generators(
+    train_gen, val_gen = create_data_generators_training(
         dirs["DATASET_DIR"], input_shape, args.batch_size
     )
     # Selección de modelo
@@ -30,10 +35,8 @@ def setup_training_components(args, input_shape, num_classes):
     elif args.model == "densenet201":
         from models.densenet201 import DenseNet201FinetuneModel
 
-        trainable_layers = int(os.getenv("FINETUNE_TRAINABLE_LAYERS", 30))
-        freeze_batchnorm = (
-            os.getenv("FINETUNE_FREEZE_BATCHNORM", "true").lower() == "true"
-        )
+        trainable_layers = get_finetune_trainable_layers()
+        freeze_batchnorm = get_finetune_freeze_batchnorm()
         model = DenseNet201FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
@@ -106,7 +109,9 @@ def train_distributed(strategy, args):
 
 
 def main():
-    # Configurar GPU primero
+    # Configurar directorios primero
+    setup_directories()
+    # Configurar GPU
     from utils.gpu_config import configure_environment
 
     configure_environment()

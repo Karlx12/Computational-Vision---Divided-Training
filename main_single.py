@@ -1,23 +1,27 @@
 from argparse import Namespace
-import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Solo errores fatales
-os.environ["TF_CPP_MIN_VLOG_LEVEL"] = "0"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = os.getenv("TF_CPP_MIN_LOG_LEVEL", "3")
 import keras
 from datetime import datetime
-from utils.config import get_directories, setup_directories
-from utils.data_loader import create_data_generators
+from utils.config import (
+    get_directories,
+    setup_directories,
+    get_img_size,
+    get_batch_size,
+    get_epochs,
+    get_model,
+    get_finetune_trainable_layers,
+    get_finetune_freeze_batchnorm,
+)
+from utils.data_loader import create_data_generators_training
 from utils.model_reports import save_training_reports
 
 
 def setup_training_components(args: Namespace, input_shape, num_classes):
     dirs: dict[str, Path] = get_directories()
-    train_gen, val_gen = create_data_generators(
+    train_gen, val_gen = create_data_generators_training(
         dirs["DATASET_DIR"], input_shape, args.batch_size
     )
     model = None
@@ -33,10 +37,8 @@ def setup_training_components(args: Namespace, input_shape, num_classes):
     elif args.model == "densenet201":
         from models.densenet201 import DenseNet201FinetuneModel
 
-        trainable_layers = int(os.getenv("FINETUNE_TRAINABLE_LAYERS", 30))
-        freeze_batchnorm = (
-            os.getenv("FINETUNE_FREEZE_BATCHNORM", "true").lower() == "true"
-        )
+        trainable_layers = get_finetune_trainable_layers()
+        freeze_batchnorm = get_finetune_freeze_batchnorm()
         model = DenseNet201FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
@@ -89,24 +91,21 @@ def main():
     configure_environment()
     setup_directories()
     dirs = get_directories()
-    input_shape = (256, 256, 3)
+    IMG_SIZE = get_img_size()
+    input_shape = (IMG_SIZE, IMG_SIZE, 3)  # 256 x 256 píxeles, 3 canales (RGB)
     num_classes: int = len(
         [d for d in dirs["DATASET_DIR"].iterdir() if d.is_dir()]
     )
 
     parser = ArgumentParser()
-    parser.add_argument(
-        "--batch-size", type=int, default=int(os.getenv("BATCH_SIZE", 48))
-    )
+    parser.add_argument("--batch-size", type=int, default=get_batch_size())
     parser.add_argument(
         "--model",
         type=str,
         choices=["cnn", "vgg", "densenet201"],
-        default=os.getenv("MODEL", "cnn"),
+        default=get_model(),
     )
-    parser.add_argument(
-        "--epochs", type=int, default=int(os.getenv("EPOCHS", 100))
-    )
+    parser.add_argument("--epochs", type=int, default=get_epochs())
     args = parser.parse_args()
 
     model, train_gen, val_gen, callbacks = setup_training_components(
