@@ -12,6 +12,7 @@ from utils.config import (
     setup_directories,
     get_finetune_trainable_layers,
     get_finetune_freeze_batchnorm,
+    get_validation_dir,
 )
 from utils.data_loader import create_data_generators_training
 from utils.distributed import configure_distributed_environment
@@ -19,9 +20,13 @@ from utils.model_reports import save_training_reports
 
 
 def setup_training_components(args, input_shape, num_classes):
-    dirs: dict[str, Path] = get_directories()
+    validation_dir = args.validation_dir or get_validation_dir()
+    dirs: dict[str, Path] = get_directories(validation_dir=validation_dir)
     train_gen, val_gen = create_data_generators_training(
-        dirs["DATASET_DIR"], input_shape, args.batch_size
+        dirs["DATASET_DIR"],
+        input_shape,
+        args.batch_size,
+        validation_dir=validation_dir,
     )
     # Selección de modelo
     if args.model == "cnn":
@@ -109,6 +114,8 @@ def train_distributed(strategy, args):
 
 
 def main():
+    import argparse
+
     # Configurar directorios primero
     setup_directories()
     # Configurar GPU
@@ -116,7 +123,27 @@ def main():
 
     configure_environment()
     # Configurar entorno distribuido
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch-size", type=int, default=48)
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["cnn", "vgg", "densenet201"],
+        default="cnn",
+    )
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument(
+        "--validation-dir",
+        type=str,
+        default="",
+        help="Directorio de validación externo (opcional)",
+    )
+    # Agrega aquí otros argumentos si es necesario
     strategy, args = configure_distributed_environment()
+    # Sobrescribe args con los argumentos de parser
+    cli_args, _ = parser.parse_known_args()
+    for k, v in vars(cli_args).items():
+        setattr(args, k, v)
     # Ejecutar entrenamiento
     train_distributed(strategy, args)
 

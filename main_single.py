@@ -14,15 +14,20 @@ from utils.config import (
     get_model,
     get_finetune_trainable_layers,
     get_finetune_freeze_batchnorm,
+    get_validation_dir,
 )
 from utils.data_loader import create_data_generators_training
 from utils.model_reports import save_training_reports
 
 
 def setup_training_components(args: Namespace, input_shape, num_classes):
-    dirs: dict[str, Path] = get_directories()
+    validation_dir = args.validation_dir or get_validation_dir()
+    dirs: dict[str, Path] = get_directories(validation_dir=validation_dir)
     train_gen, val_gen = create_data_generators_training(
-        dirs["DATASET_DIR"], input_shape, args.batch_size
+        dirs["DATASET_DIR"],
+        input_shape,
+        args.batch_size,
+        validation_dir=validation_dir,
     )
     model = None
     # Selección de modelo
@@ -106,6 +111,12 @@ def main():
         default=get_model(),
     )
     parser.add_argument("--epochs", type=int, default=get_epochs())
+    parser.add_argument(
+        "--validation-dir",
+        type=str,
+        default="",
+        help="Directorio de validación externo (opcional)",
+    )
     args = parser.parse_args()
 
     model, train_gen, val_gen, callbacks = setup_training_components(

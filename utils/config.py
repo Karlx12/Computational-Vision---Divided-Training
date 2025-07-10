@@ -35,16 +35,24 @@ def get_finetune_freeze_batchnorm():
     return os.getenv("FINETUNE_FREEZE_BATCHNORM", "true").lower() == "true"
 
 
+def get_validation_dir():
+    return os.getenv("VALIDATION_DIR", "")
+
+
 # --- Directorios ---
-def get_directories() -> dict[str, Path]:
-    """Retorna los Path de los directorios principales del proyecto."""
-    return {
-        "DATASET_DIR": Path("dataset/preprocessed"),
+def get_directories(validation_dir: str = "") -> dict[str, Path]:
+    """Retorna los Path de los directorios principales del proyecto.
+    Si se pasa validation_dir, lo incluye como VALIDATION_DIR."""
+    dirs = {
+        "DATASET_DIR": Path("./dataset/real_training/training"),
         "MODELS_DIR": Path("models_trained"),
         "CHECKPOINTS_DIR": Path("training_checkpoints"),
         "LOG_DIR": Path("logs"),
         "SYNC_DIR": Path("sync"),
     }
+    if validation_dir:
+        dirs["VALIDATION_DIR"] = Path(validation_dir)
+    return dirs
 
 
 def setup_directories() -> tuple[Path, ...]:

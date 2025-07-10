@@ -9,7 +9,11 @@ Este paquete contiene utilidades para:
 """
 
 from .config import get_directories, setup_directories
-from .data_loader import create_data_generators, get_last_checkpoint
+from .data_loader import (
+    create_data_generators_training,
+    create_data_generators_fine_tunning,
+    get_last_checkpoint,
+)
 from .gpu_config import configure_environment
 from .distributed import configure_distributed_environment
 from .sync_manager import ClusterSyncManager, wait_for_master
@@ -17,7 +21,8 @@ from .sync_manager import ClusterSyncManager, wait_for_master
 __all__: list[str] = [
     "get_directories",
     "setup_directories",
-    "create_data_generators",
+    "create_data_generators_training",
+    "create_data_generators_fine_tunning",
     "get_last_checkpoint",
     "configure_environment",
     "configure_distributed_environment",

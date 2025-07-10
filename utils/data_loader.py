@@ -1,4 +1,5 @@
 from keras.src.legacy.preprocessing.image import ImageDataGenerator
+from typing import Optional
 
 
 def get_last_checkpoint(checkpoints_dir):
@@ -11,8 +12,13 @@ def get_last_checkpoint(checkpoints_dir):
 
 
 def _create_data_generators(
-    dataset_dir, input_shape, batch_size, augment=False
+    dataset_dir,
+    input_shape,
+    batch_size,
+    augment=False,
+    validation_dir: Optional[str] = "",
 ):
+    use_custom_val = bool(validation_dir)
     if augment:
         datagen = ImageDataGenerator(
             rescale=1.0 / 255,
@@ -22,35 +28,51 @@ def _create_data_generators(
             zoom_range=0.2,
             horizontal_flip=True,
             fill_mode="nearest",
-            validation_split=0.2,
+            validation_split=0.2 if not use_custom_val else 0.0,
         )
     else:
         datagen = ImageDataGenerator(
             rescale=1.0 / 255,
-            validation_split=0.2,
+            validation_split=0.2 if not use_custom_val else 0.0,
         )
     train_gen = datagen.flow_from_directory(
         str(dataset_dir),
         target_size=input_shape[:2],
         batch_size=batch_size,
         class_mode="sparse",
-        subset="training",
+        subset="training" if not use_custom_val else None,
         shuffle=True,
     )
-    val_gen = datagen.flow_from_directory(
-        str(dataset_dir),
-        target_size=input_shape[:2],
-        batch_size=batch_size,
-        class_mode="sparse",
-        subset="validation",
-        shuffle=False,
-    )
+    if use_custom_val:
+        val_datagen = ImageDataGenerator(rescale=1.0 / 255)
+        val_gen = val_datagen.flow_from_directory(
+            str(validation_dir),
+            target_size=input_shape[:2],
+            batch_size=batch_size,
+            class_mode="sparse",
+            shuffle=False,
+        )
+    else:
+        val_gen = datagen.flow_from_directory(
+            str(dataset_dir),
+            target_size=input_shape[:2],
+            batch_size=batch_size,
+            class_mode="sparse",
+            subset="validation",
+            shuffle=False,
+        )
     return train_gen, val_gen
 
 
-def create_data_generators_training(dataset_dir, input_shape, batch_size):
+def create_data_generators_training(
+    dataset_dir, input_shape, batch_size, validation_dir: Optional[str] = ""
+):
     train_gen, val_gen = _create_data_generators(
-        dataset_dir, input_shape, batch_size, augment=True
+        dataset_dir,
+        input_shape,
+        batch_size,
+        augment=True,
+        validation_dir=validation_dir,
     )
     total_images = train_gen.samples + val_gen.samples
     print(
@@ -59,7 +81,13 @@ def create_data_generators_training(dataset_dir, input_shape, batch_size):
     return train_gen, val_gen
 
 
-def create_data_generators_fine_tunning(dataset_dir, input_shape, batch_size):
+def create_data_generators_fine_tunning(
+    dataset_dir, input_shape, batch_size, validation_dir: Optional[str] = ""
+):
     return _create_data_generators(
-        dataset_dir, input_shape, batch_size, augment=False
+        dataset_dir,
+        input_shape,
+        batch_size,
+        augment=False,
+        validation_dir=validation_dir,
     )
