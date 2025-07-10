@@ -45,6 +45,14 @@ def setup_training_components(args, input_shape, num_classes):
         model = DenseNet201FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
+    elif args.model == "resnet":
+        from models.resnet import ResNet50FinetuneModel
+
+        trainable_layers = get_finetune_trainable_layers()
+        freeze_batchnorm = get_finetune_freeze_batchnorm()
+        model = ResNet50FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        ).model
     else:
         raise ValueError(f"Modelo no soportado: {args.model}")
     # Callbacks
@@ -128,7 +136,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg", "densenet201"],
+        choices=["cnn", "vgg", "densenet201", "resnet"],
         default="cnn",
     )
     parser.add_argument("--epochs", type=int, default=100)

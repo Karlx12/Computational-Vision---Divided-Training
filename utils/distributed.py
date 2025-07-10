@@ -66,7 +66,7 @@ def configure_distributed_environment() -> Tuple[
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg", "densenet201"],
+        choices=["cnn", "vgg", "densenet201", "resnet"],
         default="cnn",
         help="Tipo de modelo a entrenar",
     )

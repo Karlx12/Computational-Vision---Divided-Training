@@ -15,10 +15,12 @@ from .base_model import BaseModel
 from .cnn import CNNModel
 from .vgg import VGGModel
 from .densenet201 import DenseNet201FinetuneModel
+from .resnet import ResNet50FinetuneModel
 
 __all__ = [
     "BaseModel",
     "CNNModel",
     "VGGModel",
     "DenseNet201FinetuneModel",
+    "ResNet50FinetuneModel",
 ]
