@@ -84,6 +84,7 @@ def configure_distributed_environment() -> Tuple[
                 f"El número de IPs en --node-ips debe coincidir con "
                 f"--world-size. Recibido: {node_ips}"
             )
+
         os.environ["TF_CONFIG"] = json.dumps(
             {
                 "cluster": {
@@ -92,7 +93,13 @@ def configure_distributed_environment() -> Tuple[
                 "task": {"type": "worker", "index": args.rank},
             }
         )
-        strategy = tf.distribute.MultiWorkerMirroredStrategy()
+        communication_options = tf.distribute.experimental.CommunicationOptions(  # noqa
+            timeout_seconds=300,  # Tiempo de espera para la comunicación
+            implementation=tf.distribute.experimental.CommunicationImplementation.NCCL,
+        )
+        strategy = tf.distribute.MultiWorkerMirroredStrategy(
+            communication_options=communication_options
+        )
         print(
             "🚀 Modo distribuido activado."
             f" Nodo {args.rank} de {args.world_size}"
