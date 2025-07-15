@@ -11,7 +11,7 @@ Asegúrate de que cada modelo herede de BaseModel y
 exponga la propiedad .model correctamente.
 """
 
-from .base_model import BaseModel
+from .base_model import BaseModel, EfficientNetB0FinetuneModel
 from .cnn import CNNModel
 from .vgg import VGGModel
 from .densenet201 import DenseNet201FinetuneModel
@@ -23,4 +23,5 @@ __all__ = [
     "VGGModel",
     "DenseNet201FinetuneModel",
     "ResNet50FinetuneModel",
+    "EfficientNetB0FinetuneModel",
 ]

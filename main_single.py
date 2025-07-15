@@ -55,6 +55,14 @@ def setup_training_components(args: Namespace, input_shape, num_classes):
         model = ResNet50FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
+    elif args.model == "efficientnetb0":
+        from models.base_model import EfficientNetB0FinetuneModel
+
+        trainable_layers = get_finetune_trainable_layers()
+        freeze_batchnorm = get_finetune_freeze_batchnorm()
+        model = EfficientNetB0FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        ).model
     else:
         raise ValueError(f"Modelo no soportado: {args.model}")
 
@@ -115,7 +123,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg", "densenet201", "resnet"],
+        choices=["cnn", "vgg", "densenet201", "resnet", "efficientnetb0"],
         default=get_model(),
     )
     parser.add_argument("--epochs", type=int, default=get_epochs())
