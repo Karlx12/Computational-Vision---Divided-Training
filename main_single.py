@@ -18,6 +18,13 @@ from utils.config import (
 )
 from utils.data_loader import create_data_generators_training
 from utils.model_reports import save_training_reports
+from models import (
+    CNNModel,
+    VGGModel,
+    DenseNet201FinetuneModel,
+    ResNet50FinetuneModel,
+    EfficientNetB0FinetuneModel,
+)
 
 
 def setup_training_components(args: Namespace, input_shape, num_classes):
@@ -32,32 +39,22 @@ def setup_training_components(args: Namespace, input_shape, num_classes):
     model = None
     # Selección de modelo
     if args.model == "cnn":
-        from models.cnn import CNNModel
-
         model = CNNModel(input_shape, num_classes).model
     elif args.model == "vgg":
-        from models.vgg import VGGModel
-
         model = VGGModel(input_shape, num_classes).model
     elif args.model == "densenet201":
-        from models.densenet201 import DenseNet201FinetuneModel
-
         trainable_layers = get_finetune_trainable_layers()
         freeze_batchnorm = get_finetune_freeze_batchnorm()
         model = DenseNet201FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
     elif args.model == "resnet":
-        from models.resnet import ResNet50FinetuneModel
-
         trainable_layers = get_finetune_trainable_layers()
         freeze_batchnorm = get_finetune_freeze_batchnorm()
         model = ResNet50FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
     elif args.model == "efficientnetb0":
-        from models.base_model import EfficientNetB0FinetuneModel
-
         trainable_layers = get_finetune_trainable_layers()
         freeze_batchnorm = get_finetune_freeze_batchnorm()
         model = EfficientNetB0FinetuneModel(

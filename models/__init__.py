@@ -11,11 +11,12 @@ Asegúrate de que cada modelo herede de BaseModel y
 exponga la propiedad .model correctamente.
 """
 
-from .base_model import BaseModel, EfficientNetB0FinetuneModel
+from .base_model import BaseModel
 from .cnn import CNNModel
 from .vgg import VGGModel
 from .densenet201 import DenseNet201FinetuneModel
 from .resnet import ResNet50FinetuneModel
+from .efficient_net import EfficientNetB0FinetuneModel
 
 __all__ = [
     "BaseModel",
