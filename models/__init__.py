@@ -13,16 +13,20 @@ exponga la propiedad .model correctamente.
 
 from .base_model import BaseModel
 from .cnn import CNNModel
-from .vgg import VGGModel
+from .vgg_like import VGGLikeModel
 from .densenet201 import DenseNet201FinetuneModel
 from .resnet import ResNet50FinetuneModel
 from .efficient_net import EfficientNetB0FinetuneModel
+from .vgg16 import VGG16Model
+from .vgg19 import VGG19Model
 
 __all__ = [
     "BaseModel",
     "CNNModel",
-    "VGGModel",
+    "VGGLikeModel",
     "DenseNet201FinetuneModel",
     "ResNet50FinetuneModel",
     "EfficientNetB0FinetuneModel",
+    "VGG16Model",
+    "VGG19Model",
 ]

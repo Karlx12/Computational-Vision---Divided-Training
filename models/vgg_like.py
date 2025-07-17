@@ -3,7 +3,7 @@ from keras.models import Sequential
 from .base_model import BaseModel
 
 
-class VGGModel(BaseModel):
+class VGGLikeModel(BaseModel):
     def _build_model(self, input_shape, num_classes) -> Sequential:
         model = Sequential(
             [
