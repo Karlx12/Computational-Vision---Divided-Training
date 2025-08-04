@@ -15,8 +15,9 @@ dependencies = [
     "ruff>=0.12.2",
     "scikit-learn>=1.2.2",
     "seaborn>=0.13.2",
-    "tensorflow[and-cuda]>=2.19.0",
+    "tensorflow[and-cuda]>=2.16.0",
     "tqdm>=4.67.1",
+    "visualkeras>=0.1.4",
 ]
 
 [tool.ruff]

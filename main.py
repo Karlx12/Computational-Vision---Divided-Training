@@ -9,9 +9,7 @@ from utils.config import (
     get_finetune_freeze_batchnorm,
     get_validation_dir,
 )
-from utils.data_loader import create_data_generators_training
 from utils.distributed import configure_distributed_environment
-from utils.model_reports import save_training_reports
 from models import (
     CNNModel,
     VGGLikeModel,
@@ -21,8 +19,13 @@ from models import (
     VGG16Model,
     VGG19Model,
 )
-import keras
+from models.densenet121 import DenseNet121FinetuneModel
+from models.efficientnetb1 import EfficientNetB1FinetuneModel
+import os
+import logging
 import tensorflow as tf
+import keras
+from keras.utils import image_dataset_from_directory
 
 
 def get_model_instance(model_name, input_shape, num_classes):
@@ -52,8 +55,58 @@ def get_model_instance(model_name, input_shape, num_classes):
         return VGG19Model(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
         ).model
+    elif model_name == "densenet121":
+        return DenseNet121FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        ).model
+    elif model_name == "efficientnetb1":
+        return EfficientNetB1FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        ).model
     else:
         raise ValueError(f"Modelo no soportado: {model_name}")
+
+
+def create_distributed_dataset(
+    directory, input_shape, batch_size, validation_split=0.2
+):
+    # Crear dataset principal
+    train_ds = image_dataset_from_directory(
+        directory,
+        image_size=input_shape[:2],
+        batch_size=batch_size,
+        label_mode="sparse_categorical_crossentropy",
+        shuffle=True,
+        seed=42,
+        validation_split=validation_split,
+        subset="training",
+    )
+
+    # Dataset de validación
+    val_ds = image_dataset_from_directory(
+        directory,
+        image_size=input_shape[:2],
+        batch_size=batch_size,
+        label_mode="sparse_categorical_crossentropy",
+        shuffle=True,
+        seed=42,
+        validation_split=validation_split,
+        subset="validation",
+    )
+
+    # Función de normalización
+    def normalize_img(image, label):
+        return tf.cast(image, tf.float32) / 255.0, label
+
+    # Aplicar normalización y optimización
+    train_ds = train_ds.map(normalize_img, num_parallel_calls=tf.data.AUTOTUNE)
+    val_ds = val_ds.map(normalize_img, num_parallel_calls=tf.data.AUTOTUNE)
+
+    # Optimización de rendimiento
+    train_ds = train_ds.cache().prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
+
+    return train_ds, val_ds
 
 
 def get_callbacks(dirs, model_name):
@@ -84,80 +137,61 @@ def get_callbacks(dirs, model_name):
     ]
 
 
-def get_data_generators(dirs, input_shape, batch_size, validation_dir):
-    return create_data_generators_training(
-        dirs["DATASET_DIR"],
-        input_shape,
-        batch_size,
-        validation_dir=validation_dir,
-    )
-
-
-def setup_training_components(args, input_shape, num_classes):
-    validation_dir = args.validation_dir or get_validation_dir()
-    dirs = get_directories(validation_dir=validation_dir)
-    train_gen, val_gen = get_data_generators(
-        dirs, input_shape, args.batch_size, validation_dir
-    )
-    model = get_model_instance(args.model, input_shape, num_classes)
-    callbacks = get_callbacks(dirs, args.model)
-    return model, train_gen, val_gen, callbacks
-
-
 def train_distributed(strategy, args):
     dirs = get_directories()
     input_shape = (256, 256, 3)
     num_classes = len([d for d in dirs["DATASET_DIR"].iterdir() if d.is_dir()])
+    log_dir = dirs["LOG_DIR"]
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"train_{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+    )
+    logger = logging.getLogger(__name__)
     with strategy.scope():
-        validation_dir = getattr(args, "validation_dir", get_validation_dir())
-        dirs_full = get_directories(validation_dir=validation_dir)
-        train_gen, val_gen = get_data_generators(
-            dirs_full, input_shape, args.batch_size, validation_dir
+        global_batch_size = args.batch_size
+        per_worker_batch_size = (
+            global_batch_size // strategy.num_replicas_in_sync
         )
+        logger.info(f"Batch size por worker: {per_worker_batch_size}")
+        train_dataset = create_distributed_dataset(
+            dirs["DATASET_DIR"], input_shape, per_worker_batch_size
+        )
+        val_dir = get_validation_dir()
+        if val_dir:
+            val_dataset = create_distributed_dataset(
+                val_dir, input_shape, per_worker_batch_size
+            )
+        else:
+            val_dataset = None
         model = get_model_instance(args.model, input_shape, num_classes)
-        callbacks = get_callbacks(dirs_full, args.model)
-
-        def generator_wrapper(gen):
-            while True:
-                x, y = gen.next()
-                yield x, y
-
-        train_dataset = tf.data.Dataset.from_generator(
-            lambda: generator_wrapper(train_gen),
-            output_types=(tf.float32, tf.int32),
-            output_shapes=((None, *input_shape), (None,)),
-        ).prefetch(tf.data.AUTOTUNE)
-        val_dataset = tf.data.Dataset.from_generator(
-            lambda: generator_wrapper(val_gen),
-            output_types=(tf.float32, tf.int32),
-            output_shapes=((None, *input_shape), (None,)),
-        ).prefetch(tf.data.AUTOTUNE)
-        history = model.fit(
+        callbacks = []
+        # Chief worker only
+        task_id = getattr(strategy.cluster_resolver, "task_id", 0)
+        if task_id == 0:
+            checkpoint_path = os.path.join(
+                dirs["CHECKPOINTS_DIR"], "model_{epoch}"
+            )
+            callbacks.append(
+                keras.callbacks.ModelCheckpoint(
+                    filepath=checkpoint_path, save_weights_only=True
+                )
+            )
+            callbacks.append(keras.callbacks.BackupAndRestore("/tmp/backup"))
+        logger.info("Comenzando entrenamiento distribuido...")
+        model.get_model().fit(
             train_dataset,
             epochs=args.epochs,
             validation_data=val_dataset,
             callbacks=callbacks,
-            steps_per_epoch=train_gen.samples
-            // (args.batch_size * args.gpus_per_node * args.world_size),
-            validation_steps=val_gen.samples
-            // (args.batch_size * args.gpus_per_node * args.world_size),
         )
-        if args.rank == 0:
-            model_dir = dirs_full["MODELS_DIR"] / (
-                f"{args.model}_final_"
-                + datetime.now().strftime("%Y%m%d-%H%M%S")
-            )
-            model_dir.mkdir(parents=True, exist_ok=True)
-            model_path = model_dir / (
-                f"{args.model}_final_"
-                + datetime.now().strftime("%Y%m%d-%H%M%S")
-                + ".keras"
-            )
-            model.save(model_path)
-            print(f"✅ Modelo guardado en {model_path}")
-            save_training_reports(
-                model, history, val_gen, model_dir, args.model
-            )
+        logger.info("Entrenamiento finalizado.")
+        if task_id == 0:
+            final_model_path = os.path.join(dirs["MODELS_DIR"], "final_model")
+            model.get_model().save(final_model_path)
+            logger.info(f"Modelo guardado en {final_model_path}")
 
 
 def main():
@@ -171,7 +205,17 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg", "densenet201", "resnet", "efficientnetb0"],
+        choices=[
+            "cnn",
+            "vgg",
+            "densenet201",
+            "resnet",
+            "efficientnetb0",
+            "vgg16",
+            "vgg19",
+            "densenet121",
+            "efficientnetb1",
+        ],
         default="cnn",
     )
     parser.add_argument("--epochs", type=int, default=100)
@@ -179,7 +223,7 @@ def main():
         "--validation-dir",
         type=str,
         default="",
-        help="Directorio de validación externo (opcional)",
+        help="Directorio de validación externo",
     )
     # Agrega aquí otros argumentos si es necesario
     strategy, args = configure_distributed_environment()

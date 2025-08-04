@@ -26,37 +26,61 @@ from models import (
     VGG16Model,
     VGG19Model,
 )
+from models.densenet121 import DenseNet121FinetuneModel
+from models.efficientnetb1 import EfficientNetB1FinetuneModel
+from models.inceptionv3 import InceptionV3FinetuneModel
+from models.nasnet import NASNetMobileFinetuneModel, NASNetLargeFinetuneModel
 
 
 def get_model_instance(model_name, input_shape, num_classes):
     trainable_layers = get_finetune_trainable_layers()
     freeze_batchnorm = get_finetune_freeze_batchnorm()
     if model_name == "cnn":
-        return CNNModel(input_shape, num_classes).model
+        return CNNModel(input_shape, num_classes)
     elif model_name == "vgg":
-        return VGGLikeModel(input_shape, num_classes).model
+        return VGGLikeModel(input_shape, num_classes)
     elif model_name == "densenet201":
         return DenseNet201FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
-        ).model
+        )
     elif model_name == "resnet":
         return ResNet50FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
-        ).model
+        )
     elif model_name == "efficientnetb0":
         return EfficientNetB0FinetuneModel(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
-        ).model
+        )
     elif model_name == "vgg16":
         return VGG16Model(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
-        ).model
+        )
     elif model_name == "vgg19":
         return VGG19Model(
             input_shape, num_classes, trainable_layers, freeze_batchnorm
-        ).model
+        )
+    elif model_name == "densenet121":
+        return DenseNet121FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        )
+    elif model_name == "efficientnetb1":
+        return EfficientNetB1FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        )
+    elif model_name == "inceptionv3":
+        return InceptionV3FinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        )
+    elif model_name == "nasnetmobile":
+        return NASNetMobileFinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        )
+    elif model_name == "nasnetlarge":
+        return NASNetLargeFinetuneModel(
+            input_shape, num_classes, trainable_layers, freeze_batchnorm
+        )
     else:
-        raise ValueError(f"Modelo no soportado: {model_name}")
+        raise ValueError(f"Modelo '{model_name}' no soportado.")
 
 
 def get_callbacks(dirs, model_name):
@@ -112,6 +136,7 @@ def setup_training_components(args: Namespace, input_shape, num_classes):
     train_gen, val_gen = get_data_generators(
         dirs, input_shape, args.batch_size, validation_dir
     )
+    print(train_gen.class_indices)
     model = get_model_instance(args.model, input_shape, num_classes)
     callbacks = get_callbacks(dirs, args.model)
     return model, train_gen, val_gen, callbacks
@@ -129,13 +154,27 @@ def main():
     num_classes: int = len(
         [d for d in dirs["DATASET_DIR"].iterdir() if d.is_dir()]
     )
+    print("Clases: ", num_classes)
 
     parser = ArgumentParser()
     parser.add_argument("--batch-size", type=int, default=get_batch_size())
     parser.add_argument(
         "--model",
         type=str,
-        choices=["cnn", "vgg", "densenet201", "resnet", "efficientnetb0"],
+        choices=[
+            "cnn",
+            "vgg",
+            "densenet201",
+            "resnet",
+            "efficientnetb0",
+            "vgg16",
+            "vgg19",
+            "densenet121",
+            "efficientnetb1",
+            "inceptionv3",
+            "nasnetmobile",
+            "nasnetlarge",
+        ],
         default=get_model(),
     )
     parser.add_argument("--epochs", type=int, default=get_epochs())
@@ -151,7 +190,7 @@ def main():
         args, input_shape, num_classes
     )
     if model:
-        history = model.fit(
+        history = model.model.fit(
             train_gen,
             epochs=args.epochs,
             validation_data=val_gen,
@@ -161,9 +200,11 @@ def main():
         model_dir = dirs["MODELS_DIR"] / f"{args.model}_final_{date}"
         model_dir.mkdir(parents=True, exist_ok=True)
         model_path = model_dir / f"{args.model}_final_{date}.keras"
-        model.save(model_path)
+        model.model.save(model_path)
         print(f"✅ Modelo guardado en {model_path}")
-        save_training_reports(model, history, val_gen, model_dir, args.model)
+        save_training_reports(
+            model.model, history, val_gen, model_dir, args.model
+        )
 
 
 if __name__ == "__main__":

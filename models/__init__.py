@@ -16,9 +16,13 @@ from .cnn import CNNModel
 from .vgg_like import VGGLikeModel
 from .densenet201 import DenseNet201FinetuneModel
 from .resnet import ResNet50FinetuneModel
-from .efficient_net import EfficientNetB0FinetuneModel
+from .efficientnetb0 import EfficientNetB0FinetuneModel
 from .vgg16 import VGG16Model
 from .vgg19 import VGG19Model
+from .densenet121 import DenseNet121FinetuneModel
+from .efficientnetb1 import EfficientNetB1FinetuneModel
+from .inceptionv3 import InceptionV3FinetuneModel
+from .nasnet import NASNetMobileFinetuneModel, NASNetLargeFinetuneModel
 
 __all__ = [
     "BaseModel",
@@ -29,4 +33,9 @@ __all__ = [
     "EfficientNetB0FinetuneModel",
     "VGG16Model",
     "VGG19Model",
+    "DenseNet121FinetuneModel",
+    "EfficientNetB1FinetuneModel",
+    "InceptionV3FinetuneModel",
+    "NASNetMobileFinetuneModel",
+    "NASNetLargeFinetuneModel",
 ]
