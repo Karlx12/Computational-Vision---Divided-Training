@@ -44,7 +44,7 @@ def get_directories(validation_dir: str = "") -> dict[str, Path]:
     """Retorna los Path de los directorios principales del proyecto.
     Si se pasa validation_dir, lo incluye como VALIDATION_DIR."""
     dirs = {
-        "DATASET_DIR": Path("./dataset/real_training/training"),
+        "DATASET_DIR": Path("./dataset/preprocessed_mri/training"),
         "MODELS_DIR": Path("models_trained"),
         "CHECKPOINTS_DIR": Path("training_checkpoints"),
         "LOG_DIR": Path("logs"),

@@ -1,24 +1,11 @@
 import argparse
 from pathlib import Path
 import numpy as np
-import matplotlib.pyplot as plt
 from typing import Optional
 from keras.src.legacy.preprocessing.image import ImageDataGenerator
 from keras.models import load_model
-from sklearn.metrics import (
-    classification_report,
-    roc_curve,
-    auc,
-    precision_recall_curve,
-    average_precision_score,
-    confusion_matrix,
-    ConfusionMatrixDisplay,
-)
-from sklearn.preprocessing import label_binarize
+from sklearn.metrics import classification_report
 import json
-import scipy.sparse
-
-import visualkeras
 
 PREFS_FILENAME = "model_prefs.json"
 
@@ -105,6 +92,145 @@ def get_model_image_size(model_path, fallback_size=256):
     return fallback_size
 
 
+def load_and_prepare_model(model_path: Path):
+    """Carga el modelo y obtiene el tamaño de imagen preferido."""
+    model = load_model(model_path, safe_mode=True)
+    if model is None:
+        raise ValueError(f"No se pudo cargar el modelo desde {model_path}")
+    img_size = get_model_image_size(model_path)
+    return model, img_size
+
+
+def prepare_data_generators(data_dir: Path, img_size: int, batch_size: int):
+    """Prepara los generadores de datos para validación y entrenamiento."""
+    validation_dir = data_dir / "validation"
+    training_dir = data_dir / "training"
+
+    if not validation_dir.exists() or not training_dir.exists():
+        raise ValueError(
+            "El directorio proporcionado debe contener subcarpetas "
+            "'training' y 'validation'."
+        )
+
+    datagen = ImageDataGenerator(rescale=1.0 / 255)
+    val_gen = datagen.flow_from_directory(
+        str(validation_dir),
+        target_size=(img_size, img_size),
+        batch_size=batch_size,
+        class_mode="sparse",
+        shuffle=False,
+    )
+    train_gen = datagen.flow_from_directory(
+        str(training_dir),
+        target_size=(img_size, img_size),
+        batch_size=batch_size,
+        class_mode="sparse",
+        shuffle=False,
+    )
+    return val_gen, train_gen
+
+
+def generate_classification_reports(model, val_gen, train_gen=None):
+    """Genera los reportes de clasificación para validación y entrenamiento."""
+    y_true = val_gen.classes
+    y_pred = model.predict(val_gen, verbose=1).astype(np.float32)
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    class_names_es = list(val_gen.class_indices.keys())
+    class_translation = {
+        "meningioma": "meningioma",
+        "no_tumor": "no tumor",
+        "pituitaria": "pituitary tumor",
+    }
+    class_names_en = [class_translation.get(c, c) for c in class_names_es]
+    report_es = classification_report(
+        y_true,
+        y_pred_classes,
+        digits=4,
+        target_names=class_names_es,
+        output_dict=True,
+    )
+    report_en = classification_report(
+        y_true,
+        y_pred_classes,
+        digits=4,
+        target_names=[str(c) for c in class_names_en],
+        output_dict=True,
+    )
+    if train_gen:
+        y_train_true = train_gen.classes
+        y_train_pred = model.predict(train_gen, verbose=0).astype(np.float32)
+        y_train_pred_classes = np.argmax(y_train_pred, axis=1)
+        train_class_names = list(train_gen.class_indices.keys())
+        train_metrics = classification_report(
+            y_train_true,
+            y_train_pred_classes,
+            digits=4,
+            target_names=[str(c) for c in train_class_names],
+            output_dict=True,
+        )
+    else:
+        train_metrics = None
+    return report_es, report_en, train_metrics
+
+
+def save_reports(output_dir: Path, report_es, report_en, train_metrics=None):
+    """Guarda los reportes de clasificación en formato markdown y texto."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    def dict_to_combined_markdown(report_dict, train_dict, class_names, title):
+        lines = [f"### **{title}**\n"]
+        lines.append(
+            "| Classification  | Precision (Val) | Recall (Val) | "
+            "F1-score (Val) | Support (Val) | "
+        )
+        lines.append(
+            "|-----------------|-----------------|---------------|----------------|---------------|"
+            "------------------|----------------|----------------|----------------|"
+        )
+        for cname in class_names:
+            val_row = report_dict.get(cname, {})
+            if not isinstance(val_row, dict):
+                val_row = {
+                    "precision": 0,
+                    "recall": 0,
+                    "f1-score": 0,
+                    "support": 0,
+                }
+            train_row = train_dict.get(cname, {}) if train_dict else {}
+            if not isinstance(train_row, dict):
+                train_row = {
+                    "precision": 0,
+                    "recall": 0,
+                    "f1-score": 0,
+                    "support": 0,
+                }
+            lines.append(
+                f"| {cname} | {val_row.get('precision', 0) * 100:.2f} | "
+                f"{val_row.get('recall', 0) * 100:.2f} | "
+                f"{val_row.get('f1-score', 0) * 100:.2f} | "
+                f"{int(val_row.get('support', 0))} | "
+                f"{train_row.get('precision', 0) * 100:.2f} | "
+                f"{train_row.get('recall', 0) * 100:.2f} | "
+                f"{train_row.get('f1-score', 0) * 100:.2f} | "
+                f"{int(train_row.get('support', 0))} |"
+            )
+        return "\n".join(lines)
+
+    with open(output_dir / "classification_report.md", "w") as f:
+        f.write(
+            dict_to_combined_markdown(
+                report_en,
+                train_metrics,
+                list(report_en.keys()),
+                "Combined Metrics",
+            )
+        )
+    with open(output_dir / "classification_report_es.txt", "w") as f:
+        f.write(str(report_es))
+    with open(output_dir / "classification_report_en.txt", "w") as f:
+        f.write(str(report_en))
+
+
 def generate_classification_report(
     model_path: Path,
     data_dir: Path,
@@ -114,178 +240,26 @@ def generate_classification_report(
     _retry: bool = False,
 ):
     model_dir = model_path.parent
+    # Set the output directory to a 'reports' subfolder
+    # within the model's directory
+    output_dir = model_dir / "reports"
     try:
-        # Cargar modelo
-        model = load_model(model_path, safe_mode=True)
-        if model is None:
-            raise ValueError(f"No se pudo cargar el modelo desde {model_path}")
-        # Detectar tamaño de imagen si no se especifica
-        if img_size is None:
-            img_size = get_model_image_size(model_path)
-        # Preparar generador de datos
-        datagen = ImageDataGenerator(rescale=1.0 / 255)
-        val_gen = datagen.flow_from_directory(
-            str(data_dir),
-            target_size=(img_size, img_size),
-            batch_size=batch_size,
-            class_mode="sparse",
-            shuffle=False,
+        model, img_size = load_and_prepare_model(model_path)
+        val_gen, train_gen = prepare_data_generators(
+            data_dir,
+            img_size if isinstance(img_size, int) else 256,
+            batch_size,
         )
-        # Predicciones
-        y_true = val_gen.classes
-        if y_true is None:
-            raise ValueError(
-                "No se encontraron etiquetas verdaderas en el generador."
-            )
-        y_pred = model.predict(val_gen, verbose=1)  # type: ignore
-        if y_pred is None:
-            raise ValueError("El modelo no devolvió predicciones.")
-        y_pred = y_pred.astype(
-            np.float32
-        )  # Asegura dtype compatible con sklearn
-        y_pred_classes = np.argmax(y_pred, axis=1)
-        # Obtener nombres de clases
-        class_names = list(val_gen.class_indices.keys())
-        n_classes = len(class_names)
-        # Reporte de clasificación con nombres de clase
-        report = classification_report(
-            y_true, y_pred_classes, digits=4, target_names=class_names
+        report_es, report_en, train_metrics = generate_classification_reports(
+            model,
+            val_gen,
+            train_gen,
         )
-        if isinstance(report, dict):
-            report = str(report)
-        # Guardar solo el reporte de clasificación
-        if output_dir is None:
-            output_dir = model_path.parent
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        with open(output_dir / "classification_report.txt", "w") as f:
-            f.write(
-                "Matriz de reporte de clasificación (Classification Report):\n"
-                "- Precision: de las veces que el modelo predijo una clase, "
-                "cuántas fueron correctas.\n"
-                "- Recall: de las veces que una clase realmente apareció, "
-                "cuántas veces el modelo la detectó.\n"
-                "- F1-Score: media armónica de precisión y recall.\n"
-                "- Support: número real de muestras por clase.\n\n"
-            )
-            f.write(report)
-
-        # Visualización del modelo con visualkeras
-        if _visualkeras_available:
-            try:
-                visualkeras.layered_view(
-                    model, to_file=str(output_dir / "model_visualization.png")
-                )
-                print(
-                    "🖼️ Visualización del modelo guardada en "
-                    f"{output_dir / 'model_visualization.png'}"
-                )
-            except Exception as e:
-                print(
-                    "⚠️ No se pudo generar la visualización del modelo con "
-                    "visualkeras: "
-                    f"{e}"
-                )
-        else:
-            print(
-                "ℹ️ El paquete visualkeras no está instalado. "
-                "Omite visualización de arquitectura."
-            )
-        # Matriz de confusión
-        cm = confusion_matrix(y_true, y_pred_classes)
-        disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm, display_labels=class_names
-        )
-        fig_cm, ax_cm = plt.subplots(figsize=(8, 8))
-        disp.plot(ax=ax_cm, cmap="Blues", xticks_rotation=45)
-        plt.title("Matriz de Confusión")
-        plt.tight_layout()
-        plt.savefig(output_dir / "confusion_matrix.png")
-        plt.close(fig_cm)
-        # ROC y Precision-Recall
-        y_true_bin = label_binarize(y_true, classes=range(n_classes))
-        # If y_true_bin is sparse, convert to dense
-        if isinstance(y_true_bin, scipy.sparse.spmatrix):
-            y_true_bin = y_true_bin.toarray()
-        # ROC
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
-        for i in range(n_classes):
-            fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_pred[:, i])
-            roc_auc[i] = auc(fpr[i], tpr[i])
-        # Macro/micro ROC
-        fpr["micro"], tpr["micro"], _ = roc_curve(
-            y_true_bin.ravel(), y_pred.ravel()
-        )
-        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-        # Plot ROC
-        fig_roc, ax_roc = plt.subplots(figsize=(8, 8))
-        for i in range(n_classes):
-            ax_roc.plot(
-                fpr[i],
-                tpr[i],
-                label=f"{class_names[i]} (AUC = {roc_auc[i]:.2f})",
-            )
-        ax_roc.plot([0, 1], [0, 1], "k--", lw=2)
-        ax_roc.plot(
-            fpr["micro"],
-            tpr["micro"],
-            label=f"micro-average (AUC = {roc_auc['micro']:.2f})",
-            color="navy",
-            linestyle=":",
-            lw=2,
-        )
-        ax_roc.set_xlabel("False Positive Rate")
-        ax_roc.set_ylabel("True Positive Rate")
-        ax_roc.set_title("Curva ROC Multiclase")
-        ax_roc.legend(loc="lower right")
-        plt.tight_layout()
-        plt.savefig(output_dir / "roc_curve.png")
-        plt.close(fig_roc)
-        # Precision-Recall
-        precision = dict()
-        recall = dict()
-        avg_precision = dict()
-        for i in range(n_classes):
-            precision[i], recall[i], _ = precision_recall_curve(
-                y_true_bin[:, i], y_pred[:, i]
-            )
-            avg_precision[i] = average_precision_score(
-                y_true_bin[:, i], y_pred[:, i]
-            )
-        # Macro/micro PR
-        precision["micro"], recall["micro"], _ = precision_recall_curve(
-            y_true_bin.ravel(), y_pred.ravel()
-        )
-        avg_precision["micro"] = average_precision_score(
-            y_true_bin, y_pred, average="micro"
-        )
-        # Plot PR
-        fig_pr, ax_pr = plt.subplots(figsize=(8, 8))
-        for i in range(n_classes):
-            ax_pr.plot(
-                recall[i],
-                precision[i],
-                label=f"{class_names[i]} (AP = {avg_precision[i]:.2f})",
-            )
-        ax_pr.plot(
-            recall["micro"],
-            precision["micro"],
-            label=f"micro-average (AP = {avg_precision['micro']:.2f})",
-            color="navy",
-            linestyle=":",
-            lw=2,
-        )
-        ax_pr.set_xlabel("Recall")
-        ax_pr.set_ylabel("Precision")
-        ax_pr.set_title("Curva Precision-Recall Multiclase")
-        ax_pr.legend(loc="lower left")
-        plt.tight_layout()
-        plt.savefig(output_dir / "precision_recall_curve.png")
-        plt.close(fig_pr)
-        print(
-            f"✅ Reporte de clasificación y gráficos guardados en {output_dir}"
+        save_reports(
+            output_dir,
+            report_es,
+            report_en,
+            train_metrics,
         )
     except ValueError as ve:
         msg = str(ve)
@@ -293,7 +267,10 @@ def generate_classification_report(
             # Extraer tamaño esperado del error
             import re
 
-            m = re.search(r"expected shape=\(None, (\d+), (\d+), (\d+)\)", msg)
+            m = re.search(
+                r"expected shape=\\(None, (\\d+), (\\d+), (\\d+)\\)",
+                msg,
+            )
             if m:
                 size = int(m.group(1))
                 print(
@@ -350,7 +327,8 @@ def main():
         "--data-dir",
         type=str,
         required=False,
-        default="./dataset/preprocessed",
+        # default="./dataset/preprocessed_mri/",
+        default="./dataset/real_training/",
         help=(
             "Directorio con las imágenes de validación/test "
             "(subcarpetas por clase)"

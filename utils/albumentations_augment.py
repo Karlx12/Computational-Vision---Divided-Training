@@ -6,12 +6,12 @@ import cv2
 
 # Configuración
 INPUT_DIR = Path("dataset/Training")
-OUTPUT_DIR = Path("dataset/real_training")
+OUTPUT_DIR = Path("dataset/preprocessed_mri")
 TRAIN_DIR = OUTPUT_DIR / "training"
 VAL_DIR = OUTPUT_DIR / "validation"
-IMG_SIZE = 256
+IMG_SIZE = 640
 VAL_SPLIT = 0.2
-AUG_PER_IMAGE = 3  # Hasta 3 imágenes augmentadas por original
+AUG_PER_IMAGE = 0  # Hasta 3 imágenes augmentadas por original
 
 # Transformaciones leves para MRI en escala de grises
 transform = A.Compose(
